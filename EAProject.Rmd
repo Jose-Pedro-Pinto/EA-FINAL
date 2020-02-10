@@ -1,0 +1,834 @@
+---
+title: "Aplied Statistics Project"
+author: "José Pinto - 201603713"
+date: "5/1/2020"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Objective 
+
+The objective of this project is to, using linear regression, try to predict the presence<br>
+or absence of cardiovascular disease in a particular individual.<br>
+
+With that goal in mind a dataset was obtained containing several features of theoretical<br>
+significance.<br>
+
+## Dateset description
+
+The dataset we will be using is the cardiovascular disease dataset hosted in kaggle.<br>
+https://www.kaggle.com/sulianova/cardiovascular-disease-dataset/data<br>
+
+The dataset is comprised of about 70000 records of patient data, 11 features and one<br>
+target variable.<br>
+
+The features in the dataset are in a few types, whith those being, objective(factual information),<br>
+examination(resulting of an exam) or subjective(given by the patient). The type of each<br>
+feature will be presented further down.<br>
+
+All values were colected at the moment of medical examination<br>
+
+Note: The source of the dataset could not be verified, as such any results and conclusions<br>
+must be carefully analised and its validity can not be fully trusted.<br>
+
+## Dateset import and display
+
+```{r message=FALSE}
+library(readr)
+cardio_train <- read_delim("C:/Users/zé/Desktop/programação/R/EA/cardio_train.csv", 
+                           ";", escape_double = FALSE, trim_ws = TRUE)
+knitr::kable(head(cardio_train), caption = "Cardiovascular dataset", floating.environment="sidewaystable")
+```
+
+## Feature descriptions
+
+age: The age in days of the person (objective feature), integer value<br>
+height: The height in cm of the person(objective feature), integer value<br>
+weight: The weight in kg of the person(objective feature), float value<br>
+gender: The gender of the individual(objective feature), integer value with categorical<br>
+meaning -- 1-women 2-men.<br>
+ap-hi: systolic blood pressure(examination feature), integer value<br>
+ap-lo: diastolic blood pressure(examination feature), integer value<br>
+cholesterol: cholesterol levels of the person(examination feature), integer value with<br>
+categorical meaning -- 1-normal 2-above normal 3-well above normal<br>
+gluc: glucose levels of the person(examination feature), integer value with categorical<br>
+meaning -- 1-normal 2-above normal 3-well above normal<br>
+smoke: wether or not the person smokes(subjective feature), boolean value -- 0-does not smoke<br>
+1-smokes <br>
+alco: wether or not person consumes alcoolic beverages(subjective feature), boolean value<br>
+0-no intake 1-intake<br>
+active: wether or not person performs physical activity(subjective feature), boolean value<br>
+0-no activity 1-activity
+
+### Target variable
+
+cardio: presence or absence of cardiovascular disease, boolean variable, 0-no disease 1-disease<br>
+
+The dataset also has an index row, this will now be removed.<br>
+
+```{r indexRemoval}
+cardio_train = cardio_train[2:13]
+```
+
+## Means, median, quantiles, min and max
+
+```{r featureSummary}
+summary(cardio_train)
+```
+
+## Variance
+
+```{r featureVariability}
+var(cardio_train$age)
+var(cardio_train$gender)
+var(cardio_train$height)
+var(cardio_train$weight)
+var(cardio_train$ap_hi)
+var(cardio_train$ap_lo)
+var(cardio_train$cholesterol)
+var(cardio_train$gluc)
+var(cardio_train$smoke)
+var(cardio_train$alco)
+var(cardio_train$active)
+var(cardio_train$cardio)
+```
+
+## Features boxplots
+
+```{r featureBoxPlot}
+par(mfrow=c(2,2))
+boxplot(cardio_train$age,main="age")
+boxplot(cardio_train$gender,main="gender")
+boxplot(cardio_train$height,main="height")
+boxplot(cardio_train$weight,main="weight")
+boxplot(cardio_train$ap_hi,main="ap_hi")
+boxplot(cardio_train$ap_lo,main="ap_lo")
+boxplot(cardio_train$cholesterol,main="cholesterol")
+boxplot(cardio_train$gluc,main="gluc")
+boxplot(cardio_train$smoke,main="smoke")
+boxplot(cardio_train$alco,main="alco")
+boxplot(cardio_train$active,main="active")
+boxplot(cardio_train$cardio,main="cardio")
+```
+
+From the age boxplot we can conclude that most individuals are around 20000 days old ~ 55 years,<br>
+with the yougest about 12000 days old ~ 35 years old. The observations are mostly symetric.<br>
+From the gender boxplot we can conclude that most of the individuals are female.<br>
+From the height boxplot we can conclude that most indivuduals are about 150 to 180 cm tall. We<br>
+also have some concerning observations, individuals about 50cm tall, wich is strange given that all<br>
+individuals are older that 35 years old. The observations are also skewed to the right.<br>
+From the weight boxplot we can conclude that most individuals weigh about 60 kg. Once again we have some<br>
+concerning observations of individuals weighing about 20 kg. The observations are also skewed to the right.<br>
+From the ap_hi boxplot it is hard to obtain much information other than some severe outliers, with values<br>
+reaching the thousands(obviously wrong values).<br>
+From the ap_lo boxplot it is hard to obtain much information other than some severe outliers, with values<br>
+reaching the thousands(obviously wrong values).<br>
+From the cholesterol boxplot we can conclude that most values are of 1, meaning normal levels, with enough<br>
+values on the other types for these to not be considered outliers.<br>
+From the gluc boxplot we can conclude that most values are of 1, meaning normal levels, however there are<br>
+not enough observations on other values, and these are considered outliers.<br>
+From the smoke boxplot we can conclude that most individuals are non smokers, with few enough smokers that<br>
+these are considered outliers.<br>
+From the alco boxplot we can conclude that most individuals are non alcohol consumers, with few enough<br>
+consumers that these are considered outliers.<br>
+From the active boxplot we can conclude that most individuals are phisicaly active, with few enough<br>
+inactive individuals that these are considered outliers.<br>
+From the cardio boxplot we can conclude that most individuals don't have cardiovascular diseases, with<br>
+enough that have so that these are not considered outliers.<br>
+
+The obviously wrong values spotted in this step will be processed and likely removed at a later time.<br>
+
+## Features histograms
+
+```{r featureHistograms}
+par(mfrow=c(2,2))
+hist(cardio_train$age,main="age")
+gender = table(cardio_train$gender)
+barplot(gender, main="Gender Distribution",
+  names.arg=c("Male", "Female"))
+hist(cardio_train$height,main="height")
+hist(cardio_train$weight,main="weight")
+hist(cardio_train$ap_hi,main="ap_hi")
+hist(cardio_train$ap_lo,main="ap_lo")
+cholesterol = table(cardio_train$cholesterol)
+barplot(cholesterol, main="Cholesterol Distribution",
+  names.arg=c("Normal", "High","Very high"))
+gluc = table(cardio_train$gluc)
+barplot(gluc, main="Glucose Distribution",
+  names.arg=c("Normal", "High","Very high"))
+smoke = table(cardio_train$smoke)
+barplot(smoke, main="Smoke Distribution",
+  names.arg=c("Non smoker", "Smoker"))
+alco = table(cardio_train$alco)
+barplot(alco, main="Alco Distribution",
+  names.arg=c("No consumption", "Consumption"))
+active = table(cardio_train$gender)
+barplot(active, main="Active Distribution",
+  names.arg=c("Not active", "Active"))
+cardio = table(cardio_train$cardio)
+barplot(cardio, main="Cardio Distribution",
+  names.arg=c("Presence of disease", "Absence of disease"))
+```
+
+We would not expect that the amount of people with cardiovascular diseases to be almost identical<br>
+to the amount of those without, as such we can conclude that the data as almost certainly sampled to<br>
+create an unbiased and equal distribution of this property.<br>
+We would also expect that from random sampling the amount of men and women would be quite close, wich<br>
+is not the case, with a lot more women than men.<br>
+None of the features seem to follow a normal distribution wich may prove a problem. However due to the<br>
+sample size such a problem is likely to be either mitigated or practically inexistent.<br>
+The extremely skewed distriution of ap_hi, ap_lo, cholesterol and gluc might cause bias in the data.<br>
+
+
+## Features normality test(qqnorm, test)
+
+```{r featureNormality}
+par(mfrow=c(2,2))
+qqnorm(cardio_train$age,main="age"); qqline(cardio_train$age, col = 2,lwd=2,lty=2)
+qqnorm(cardio_train$gender,main="gender"); qqline(cardio_train$gender, col = 2,lwd=2,lty=2)
+qqnorm(cardio_train$height,main="height"); qqline(cardio_train$height, col = 2,lwd=2,lty=2)
+qqnorm(cardio_train$weight,main="weight"); qqline(cardio_train$weight, col = 2,lwd=2,lty=2)
+qqnorm(cardio_train$ap_hi,main="ap_hi"); qqline(cardio_train$ap_hi, col = 2,lwd=2,lty=2)
+qqnorm(cardio_train$ap_lo,main="ap_lo"); qqline(cardio_train$ap_lo, col = 2,lwd=2,lty=2)
+qqnorm(cardio_train$cholesterol,main="cholesterol"); qqline(cardio_train$cholesterol, col = 2,lwd=2,lty=2)
+qqnorm(cardio_train$gluc,main="gluc"); qqline(cardio_train$gluc, col = 2,lwd=2,lty=2)
+qqnorm(cardio_train$smoke,main="smoke"); qqline(cardio_train$smoke, col = 2,lwd=2,lty=2)
+qqnorm(cardio_train$alco,main="alco"); qqline(cardio_train$alco, col = 2,lwd=2,lty=2)
+qqnorm(cardio_train$active,main="active"); qqline(cardio_train$active, col = 2,lwd=2,lty=2)
+qqnorm(cardio_train$cardio,main="cardio"); qqline(cardio_train$cardio, col = 2,lwd=2,lty=2)
+library(tseries)
+jarque.bera.test(cardio_train$age)
+jarque.bera.test(cardio_train$gender)
+jarque.bera.test(cardio_train$height)
+jarque.bera.test(cardio_train$weight)
+jarque.bera.test(cardio_train$ap_hi)
+jarque.bera.test(cardio_train$ap_lo)
+jarque.bera.test(cardio_train$cholesterol)
+jarque.bera.test(cardio_train$gluc)
+jarque.bera.test(cardio_train$smoke)
+jarque.bera.test(cardio_train$alco)
+jarque.bera.test(cardio_train$active)
+jarque.bera.test(cardio_train$cardio)
+```
+
+From the plots and tests we can conclude that no feature is normaly distributed(or even close to it)<br>
+wich will make the analisis more complicated.<br>
+
+Other normality tests were tried, however all of them returned an error due to sample size, as such<br>
+this one(the only one that worked) was used.<br>
+
+## Feature correlations
+
+```{r featureCorrelation}
+cor(cardio_train)
+```
+
+We can observe that no two features are highly correlated with each other, with the correlation bettwen<br>
+height and gender being the highest(0.5), wich on one hand will facilitate the analisis of the results, but<br>
+on the othe, given that there is allways little correlation bettwen the features and target variable,<br>
+obtaining good results may prove difficult.<br>
+
+
+## Features scatterplots
+
+```{r featureScatter}
+pairs(cardio_train, pch = 19)
+```
+
+Due to the presence of a lot of categorical and binary variables most of the plots don't hold much meaning.<br>
+There is however an interesting aspect of the data, in a lot of the plots, the points seem to get divided<br>
+into two distinct groups. The meaning of this cannot be affered at this time, however this will be something<br>
+to take into consideration as the work develops.<br>
+
+## Response by value of categorical features
+
+```{r histGender}
+par(mfrow=c(2,1))
+women =  cardio_train[which(cardio_train$gender==1),]$cardio
+men =  cardio_train[which(cardio_train$gender==2),]$cardio
+women = table(women)
+barplot(women, main="Women Response",
+  names.arg=c("Presence of disease", "Absence of disease"))
+men = table(men)
+barplot(men, main="Men Response",
+  names.arg=c("Presence of disease", "Absence of disease"))
+```
+
+The results are almost exactly the same for men and women, as such this feature does not hold much information.<br>
+
+```{r histCholesterol}
+par(mfrow=c(3,1))
+normalCholesterol =  cardio_train[which(cardio_train$cholesterol==1),]$cardio
+highCholesterol =  cardio_train[which(cardio_train$cholesterol==2),]$cardio
+veryHighColesterol =  cardio_train[which(cardio_train$cholesterol==3),]$cardio
+normalCholesterol = table(normalCholesterol)
+barplot(normalCholesterol, main="Normal cholesterol Response",
+  names.arg=c("Presence of disease", "Absence of disease"))
+highCholesterol = table(highCholesterol)
+barplot(highCholesterol, main="High cholesterol Response",
+  names.arg=c("Presence of disease", "Absence of disease"))
+veryHighColesterol = table(veryHighColesterol)
+barplot(veryHighColesterol, main="Very high cholesterol Response",
+  names.arg=c("Presence of disease", "Absence of disease"))
+
+```
+
+The results are as we would theoritically expect, with higher amounts of cholesterol equating to higher chance<br>
+of cardiovascular disease.<br>
+
+```{r histGlucose}
+par(mfrow=c(3,1))
+normalGlucose =  cardio_train[which(cardio_train$gluc==1),]$cardio
+highGlucose =  cardio_train[which(cardio_train$gluc==2),]$cardio
+veryHighGlucose =  cardio_train[which(cardio_train$gluc==3),]$cardio
+normalGlucose = table(normalGlucose)
+barplot(normalGlucose, main="Normal glucose Response",
+  names.arg=c("Presence of disease", "Absence of disease"))
+highGlucose = table(highGlucose)
+barplot(highGlucose, main="High glucose Response",
+  names.arg=c("Presence of disease", "Absence of disease"))
+veryHighGlucose = table(veryHighGlucose)
+barplot(veryHighGlucose, main="Very high glucose Response",
+  names.arg=c("Presence of disease", "Absence of disease"))
+```
+
+The results are as we would theoritically expect, with higher amounts of glucose equating to higher chance<br>
+of cardiovascular disease.<br>
+
+```{r histSmoke}
+par(mfrow=c(2,1))
+nonSmoker =  cardio_train[which(cardio_train$smoke==0),]$cardio
+smoker =  cardio_train[which(cardio_train$smoke==1),]$cardio
+nonSmoker = table(nonSmoker)
+barplot(nonSmoker, main="Non smoker Response",
+  names.arg=c("Presence of disease", "Absence of disease"))
+smoker = table(smoker)
+barplot(smoker, main="Smoker Response",
+  names.arg=c("Presence of disease", "Absence of disease"))
+```
+
+The results are almost exactly the same for smokers and non smokers, as such this feature does not hold much<br>
+information. This however goes against what is to be expected.<br>
+
+```{r histAlcool}
+par(mfrow=c(2,1))
+noAlcoolIntake =  cardio_train[which(cardio_train$alco==0),]$cardio
+alcoolIntake =  cardio_train[which(cardio_train$alco==1),]$cardio
+noAlcoolIntake = table(noAlcoolIntake)
+barplot(noAlcoolIntake, main="No alcool intake Response",
+  names.arg=c("Presence of disease", "Absence of disease"))
+alcoolIntake = table(alcoolIntake)
+barplot(alcoolIntake, main="Alcool intake Response",
+  names.arg=c("Presence of disease", "Absence of disease"))
+```
+
+The results are almost exactly the same for individuals who consume alcool as to those who do not, as such this<br>
+feature does not hold much information. This however goes against what is to be expected.<br>
+
+```{r histActive}
+par(mfrow=c(2,1))
+inactive =  cardio_train[which(cardio_train$active==0),]$cardio
+active =  cardio_train[which(cardio_train$active==1),]$cardio
+inactive = table(inactive)
+barplot(inactive, main="Inactive Response",
+  names.arg=c("Presence of disease", "Absence of disease"))
+active = table(active)
+barplot(active, main="Active Response",
+  names.arg=c("Presence of disease", "Absence of disease"))
+```
+
+The results are almost exactly the same for for individuals that are active as well as those who are not as<br>
+such this feature does not hold much information. This however goes against what is to be expected.<br>
+
+## Simple processing
+
+Some problems have been identified, namely the obviously wrong values in ap_hi and ap_lo, wich will now be<br>
+taken care of.<br>
+
+```{r outlierRemoval}
+cardio_train_clean = cardio_train[which(!(cardio_train$ap_hi>500|cardio_train$ap_lo>500|cardio_train$ap_hi<0|cardio_train$ap_lo<0)),]
+```
+
+As other outliers have reasonable values they will be kept for now, and possibly removed later if they cause<br>
+problems.<br>
+
+We will also perform changes in some categorical variables.<br>
+For gender we will change the values from 1-women, 2-men to a more standard 0-women, 1-men.<br>
+For cholesterol we will turn the column type into factor.<br>
+For gluc we will turn the column type into factor.<br>
+
+```{r genderDecrease}
+cardio_train_clean$gender = cardio_train_clean$gender-1
+```
+
+```{r cholesterolSplit}
+cardio_train_clean$cholesterol = as.factor(cardio_train_clean$cholesterol)
+```
+
+```{r glucoseSplit}
+cardio_train_clean$gluc = as.factor(cardio_train_clean$gluc)
+```
+
+## Null model
+
+Now we will create the empty, null, model.<br>
+
+```{r modelNull}
+nullModel = lm(cardio_train_clean$cardio ~ 1)
+nullModel
+anova(nullModel)
+```
+
+From this model we obtained an intercept of 0.4949, wich means that the mean is 0.4949, wich in turn means<br>
+that 49.49% of the individuals were found to have cardiovascular diseases.<br>
+We also obtained a TSS of 17250 and a mean squared error of 0.24998
+
+## Single model
+
+Let's create models with a single variable to see their impact.<br>
+For the case of the dummie vriables, these will also be analised separatly from each other.<br>
+
+```{r modelSingle}
+ageModel = lm(cardio_train_clean$cardio ~ cardio_train_clean$age)
+ageModel
+anova(ageModel)
+anova(nullModel,ageModel)
+genderModel = lm(cardio_train_clean$cardio ~ cardio_train_clean$gender)
+genderModel
+anova(genderModel)
+anova(nullModel,genderModel)
+heightModel = lm(cardio_train_clean$cardio ~ cardio_train_clean$height)
+heightModel
+anova(heightModel)
+anova(nullModel,heightModel)
+weightModel = lm(cardio_train_clean$cardio ~ cardio_train_clean$weight)
+weightModel
+anova(weightModel)
+anova(nullModel,weightModel)
+weightModel = lm(cardio_train_clean$cardio ~ cardio_train_clean$weight)
+weightModel
+anova(weightModel)
+anova(nullModel,weightModel)
+ap_hiModel = lm(cardio_train_clean$cardio ~ cardio_train_clean$ap_hi)
+ap_hiModel
+anova(ap_hiModel)
+anova(nullModel,ap_hiModel)
+ap_loModel = lm(cardio_train_clean$cardio ~ cardio_train_clean$ap_lo)
+ap_loModel
+anova(ap_loModel)
+anova(nullModel,ap_loModel)
+cholesterolModel = lm(cardio_train_clean$cardio ~ cardio_train_clean$cholesterol)
+cholesterolModel
+anova(cholesterolModel)
+anova(nullModel,cholesterolModel)
+glucModel = lm(cardio_train_clean$cardio ~ cardio_train_clean$gluc)
+glucModel
+anova(glucModel)
+anova(nullModel,glucModel)
+smokeModel = lm(cardio_train_clean$cardio ~ cardio_train_clean$smoke)
+smokeModel
+anova(smokeModel)
+anova(nullModel,smokeModel)
+alcoModel = lm(cardio_train_clean$cardio ~ cardio_train_clean$alco)
+alcoModel
+anova(alcoModel)
+anova(nullModel,alcoModel)
+activeModel = lm(cardio_train_clean$cardio ~ cardio_train_clean$active)
+activeModel
+anova(activeModel)
+anova(nullModel,activeModel)
+```
+
+The minimum error obtained was that of 0.21 mean squared error from the regression with ap_hi.<br>
+
+The gross effects obtained were:<br>
+age: 4.855*10^-5<br>
+gender: 0.007897<br>
+height: -0.0006307<br>
+weight: 0.006279<br>
+ap_hi: 0.01105<br>
+ap_lo: 0.01658<br>
+cholesterol: 0.1609 for the second category and 0.3272 for the third category<br>
+gluc: 0.1129 for the second category and 0.1425 for the third category<br>
+smoke: -0.02883<br>
+alco: -0.01802<br>
+active: -0.04686<br>
+
+## Full model
+
+Now we will see the results with all of the variables.<br>
+
+```{r modelFull}
+fullModel = lm(cardio_train_clean$cardio ~ 
+                 age +
+                 gender +
+                 height +
+                 weight +
+                 ap_hi +
+                 ap_lo +
+                 cholesterol +
+                 gluc +
+                 smoke +
+                 alco +
+                 active,
+               data = cardio_train_clean
+               )
+fullModel
+anova(fullModel)
+anova(nullModel,fullModel)
+```
+
+With the saturated model we managed to decrease the error from the minimum of 0.21 to 0.20.<br>
+There is however an obvious non significant feature.<br>
+That being height.<br>
+Given the nature of the problem, the intercept of -1.46 is a concerning value.<br>
+
+## Model iteration
+
+At this point we will iterate on the model until we reach the most statistically significant<br>
+
+We will start from the saturated model, and remove one none significant variable.<br>
+Then we will compute the new linear regression. And do the previous step untill all variables<br>
+are significant.<br>
+Then we will select from the model the most significant variable and add it. If it is significant<br>
+go back to step one and repeat.<br>
+After we only have significant variables and no significant one can be added we will check the cook's<br>
+distances and leverages and remove observations with high values on both. If any are removed, go back<br>
+to step one.<br>
+After the variable selection and cook/leverage inspection we will check for confounding variables, by<br>
+adding one variable at a time and checking the changes on the other ones. If a coeficient changes<br>
+too much the variable will be added and we will go back to step one.<br>
+
+## Iteration 1
+
+First lets remove the variable with the highest p-value, the height feature.<br>
+
+```{r modelIter1}
+iterModel1 = lm(cardio_train_clean$cardio ~ 
+                 age +
+                 gender +
+                 weight +
+                 ap_hi +
+                 ap_lo +
+                 cholesterol +
+                 gluc +
+                 smoke +
+                 alco +
+                 active,
+               data = cardio_train_clean
+               )
+iterModel1
+anova(iterModel1)
+anova(fullModel,iterModel1)
+```
+
+There are no more variables that are not significant, since we just removed the height, we wont<br>
+try to put it back in.<br>
+
+Since we now have all the significant variables, lets check the cook's distances.<br>
+
+```{r modelIter2}
+plot(hatvalues(iterModel1))
+```
+
+All the cook's distances are below 0.01, way below the required value to be concerning(1).<br>
+Therefore it wont be required to look at the leverages.<br>
+
+Now we will verify for confounding variables.<br>
+
+```{r modelIter5}
+iterModel2 = lm(cardio_train_clean$cardio ~ 
+                 age +
+                 gender +
+                 height +
+                 weight +
+                 ap_hi +
+                 ap_lo +
+                 cholesterol +
+                 gluc +
+                 smoke +
+                 alco +
+                 active,
+               data = cardio_train_clean
+               )
+iterModel2
+anova(iterModel2)
+anova(iterModel1,iterModel2)
+```
+
+Some of the values changed significantly and as such height is a confounding variable.<br>
+Therefore it will be added back into the model.<br>
+
+v)<br>
+
+```{r ageCholesterolInteraction}
+cardio_train_lowCol = cardio_train_clean[which(cardio_train_clean$cholesterol==1),]
+cardio_train_medCol = cardio_train_clean[which(cardio_train_clean$cholesterol==2),]
+cardio_train_highCol = cardio_train_clean[which(cardio_train_clean$cholesterol==3),]
+lowColModel = lm(cardio_train_lowCol$cardio ~ 
+                 age +
+                 gender +
+                 height +
+                 weight +
+                 ap_hi +
+                 ap_lo +
+                 gluc +
+                 smoke +
+                 alco +
+                 active,
+               data = cardio_train_lowCol
+               )
+lowColModel
+medCol = lm(cardio_train_medCol$cardio ~ 
+                 age +
+                 gender +
+                 height +
+                 weight +
+                 ap_hi +
+                 ap_lo +
+                 gluc +
+                 smoke +
+                 alco +
+                 active,
+               data = cardio_train_medCol
+               )
+medCol
+highCol = lm(cardio_train_highCol$cardio ~ 
+                 age +
+                 gender +
+                 height +
+                 weight +
+                 ap_hi +
+                 ap_lo +
+                 gluc +
+                 smoke +
+                 alco +
+                 active,
+               data = cardio_train_highCol
+               )
+highCol
+
+calculate_mode <- function(x) {
+  uniqx <- unique(na.omit(x))
+  uniqx[which.max(tabulate(match(x, uniqx)))]
+}
+
+cardio_train_mean = cardio_train_lowCol
+cardio_train_mean$gender = calculate_mode(cardio_train_lowCol$gender)
+cardio_train_mean$height = mean(cardio_train_lowCol$height)
+cardio_train_mean$weight = mean(cardio_train_lowCol$weight)
+cardio_train_mean$ap_hi = mean(cardio_train_lowCol$ap_hi)
+cardio_train_mean$ap_lo = mean(cardio_train_lowCol$ap_lo)
+cardio_train_mean$smoke = calculate_mode(cardio_train_lowCol$smoke)
+cardio_train_mean$alco = calculate_mode(cardio_train_lowCol$alco)
+cardio_train_mean$active = calculate_mode(cardio_train_lowCol$active)
+cardio_train_mean$cholesterol = calculate_mode(cardio_train_lowCol$cholesterol)
+cardio_train_mean$gluc = calculate_mode(cardio_train_lowCol$gluc)
+
+s = cardio_train_lowCol
+cardio_train_lowCol = cardio_train_mean
+
+plot(cardio_train_mean$age,cardio_train_mean$cardio)
+pr1 <- predict(lowColModel, cardio_train_lowCol, interval="confidence")
+yhat <- pr1[,1]
+lines(cardio_train_lowCol$age, yhat, lwd=3, lty=1, col="magenta")
+
+cardio_train_lowCol = s
+
+cardio_train_mean = cardio_train_medCol
+cardio_train_mean$gender = calculate_mode(cardio_train_medCol$gender)
+cardio_train_mean$height = mean(cardio_train_medCol$height)
+cardio_train_mean$weight = mean(cardio_train_medCol$weight)
+cardio_train_mean$ap_hi = mean(cardio_train_medCol$ap_hi)
+cardio_train_mean$ap_lo = mean(cardio_train_medCol$ap_lo)
+cardio_train_mean$smoke = calculate_mode(cardio_train_medCol$smoke)
+cardio_train_mean$alco = calculate_mode(cardio_train_medCol$alco)
+cardio_train_mean$active = calculate_mode(cardio_train_medCol$active)
+cardio_train_mean$cholesterol = calculate_mode(cardio_train_medCol$cholesterol)
+cardio_train_mean$gluc = calculate_mode(cardio_train_medCol$gluc)
+
+s = cardio_train_medCol
+cardio_train_medCol = cardio_train_mean
+
+pr1 <- predict(medCol, cardio_train_medCol, interval="confidence")
+yhat <- pr1[,1]
+lines(cardio_train_medCol$age, yhat, lwd=3, lty=1, col="blue")
+
+cardio_train_medCol = s
+
+cardio_train_mean = cardio_train_highCol
+cardio_train_mean$gender = calculate_mode(cardio_train_highCol$gender)
+cardio_train_mean$height = mean(cardio_train_highCol$height)
+cardio_train_mean$weight = mean(cardio_train_highCol$weight)
+cardio_train_mean$ap_hi = mean(cardio_train_highCol$ap_hi)
+cardio_train_mean$ap_lo = mean(cardio_train_highCol$ap_lo)
+cardio_train_mean$smoke = calculate_mode(cardio_train_highCol$smoke)
+cardio_train_mean$alco = calculate_mode(cardio_train_highCol$alco)
+cardio_train_mean$active = calculate_mode(cardio_train_highCol$active)
+cardio_train_mean$cholesterol = calculate_mode(cardio_train_highCol$cholesterol)
+cardio_train_mean$gluc = calculate_mode(cardio_train_highCol$gluc)
+
+s = cardio_train_highCol
+cardio_train_highCol = cardio_train_mean
+
+pr1 <- predict(highCol, cardio_train_highCol, interval="confidence")
+yhat <- pr1[,1]
+lines(cardio_train_highCol$age, yhat, lwd=3, lty=1, col="red")
+
+cardio_train_highCol = s
+```
+
+The previous plot indicated a significant change in slope(coefficient) of age for<br>
+all three levels of cholesterol. Wich indicates significant interaction bettwen<br>
+age and cholesterol.<br>
+
+Let's now change our model to include that iteraction.<br>
+
+```{r ageCholesterolModel}
+ageColModel = lm(cardio_train_clean$cardio ~ 
+                 age*
+                 cholesterol  +
+                 gender +
+                 height +
+                 weight +
+                 ap_hi +
+                 ap_lo +
+                 gluc +
+                 smoke +
+                 alco +
+                 active,
+               data = cardio_train_clean
+               )
+ageColModel
+anova(ageColModel)
+anova(iterModel2,ageColModel)
+```
+
+The coefficients proved to be significant, proving our hypotesis.<br>
+
+## Residuals
+
+```{r modelResids}
+plot(ageColModel$residuals)
+boxplot(ageColModel$residuals,rstandard(ageColModel),rstudent(ageColModel))
+qqnorm(ageColModel$residuals)
+qqline(ageColModel$residuals)
+hist(ageColModel$residuals)
+```
+
+From the plot the residuals seem to have homocedasticy, however from the normality plots<br>
+we conclude that they are not normal, presenting a wave like pattern.<br>
+
+## Further analisis of two variables
+
+i)<br>
+continuous variable: age<br>
+categorical variable: cholesterol<br>
+
+Gross effects:<br>
+age - 0.00004855<br>
+cholesterol2 - 0.1609<br>
+cholesterol3 - 0.3272<br>
+Adjusted efffects:<br>
+age - 0.00003421<br>
+cholesterol2 - 0.4711<br>
+cholesterol3 - 0.6645<br>
+
+The weight of the age decreased, wich means that some of the increase in the response explained by age<br>
+is now being explained by other variables. This is corroborated by the fact that most other features have<br>
+positive coefficients. This all means that an increase in age now has a greater increase in the value of the response.<br>
+The weights of the cholesterol2 and cholesterol3 increased, wich means that some of the decrease in the<br>
+response explained by them is now being explained by other variables. This is corroborated by the fact that<br>
+most other features have positive coefficients. This all means that an increase in cholesterol now has a greater<br>
+increase in the value of the response.<br>
+
+
+ii)<br>
+```{r agePredictions}
+calculate_mode <- function(x) {
+  uniqx <- unique(na.omit(x))
+  uniqx[which.max(tabulate(match(x, uniqx)))]
+}
+
+cardio_train_mean = cardio_train_clean
+cardio_train_mean$gender = calculate_mode(cardio_train_clean$gender)
+cardio_train_mean$height = mean(cardio_train_clean$height)
+cardio_train_mean$weight = mean(cardio_train_clean$weight)
+cardio_train_mean$ap_hi = mean(cardio_train_clean$ap_hi)
+cardio_train_mean$ap_lo = mean(cardio_train_clean$ap_lo)
+cardio_train_mean$smoke = calculate_mode(cardio_train_clean$smoke)
+cardio_train_mean$alco = calculate_mode(cardio_train_clean$alco)
+cardio_train_mean$active = calculate_mode(cardio_train_clean$active)
+cardio_train_mean$cholesterol = calculate_mode(cardio_train_clean$cholesterol)
+cardio_train_mean$gluc = calculate_mode(cardio_train_clean$gluc)
+
+s = cardio_train_clean
+cardio_train_clean = cardio_train_mean
+
+plot(cardio_train_clean$age,cardio_train_clean$cardio,ylim=c(-1,1.5))
+pr1 <- predict(ageColModel, cardio_train_clean, interval="confidence")
+pr2 <- predict(ageColModel, cardio_train_clean, interval="prediction")
+yhat <- pr1[,1]
+yhL1 <- pr1[,2]
+yhU1 <- pr1[,3]
+yhL2 <- pr2[,2]
+yhU2 <- pr2[,3]
+lines(cardio_train_clean$age, yhat, lwd=3, lty=1, col="magenta")
+lines(cardio_train_clean$age, yhL1, lw=5, lt=3, col="blue")
+lines(cardio_train_clean$age, yhU1, lw=5, lt=3, col="blue")
+lines(cardio_train_clean$age, yhL2, lw=5, lt=3, col="green")
+lines(cardio_train_clean$age, yhU2, lw=5, lt=3, col="green")
+
+cardio_train_clean = s
+```
+
+We can observe an increase in the chance of cardiovascular disease as the age increases,<br>
+as would be expected. However the prediction bands are outside the range of possible values<br>
+
+iii)<br>
+The coefficient for the cholesterol3 is 0.6645, while for cholesterol2 is 0.4711.<br>
+Changing from cholesterol3 to cholesterol2 has a predicted change of -0.1888.<br>
+
+```{r cholConfInts}
+releveledCholesterol = relevel(cardio_train_clean$cholesterol,ref="3")
+cholConfintModel = lm(cardio_train_clean$cardio ~ 
+                 age *
+                 releveledCholesterol  +
+                 gender +
+                 height +
+                 weight +
+                 ap_hi +
+                 ap_lo +
+                 gluc +
+                 smoke +
+                 alco +
+                 active,
+               data = cardio_train_clean
+               )
+cholConfintModel
+confint(cholConfintModel, 'releveledCholesterol2', level=0.95)
+confint(cholConfintModel, 'releveledCholesterol2', level=0.90)
+```
+
+The 95% interval for the change is [-0.3132855,-0.07350826].<br>
+The 90% interval for the change is [-0.294010,-0.09278359].<br>
+Meaning that there is about a 7-31% decrease in the chance of cardiovascular disease when<br>
+going from the 3rd category to the 2nd one.<br>
+
+iv)<br>
+
+```{r ageEffects}
+sdAge = sd(cardio_train_clean$age)
+coefAge = ageColModel$coefficients[2]
+change = sdAge*coefAge
+change
+```
+
+An increase in age corresponding to a value of one of it's standard deviation causes an<br>
+increase in the response of 0.08501982, meaning a 9% increase in the risk of cardiovascular<br>
+disease.<br>
